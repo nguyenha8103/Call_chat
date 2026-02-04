@@ -1,11 +1,25 @@
-# SALES SERVICE - FUNCTIONS SPECIFICATION
+# SALES SERVICE - FUNCTION LIST (SUMMARY)
 
-**Service Name:** Sales Service  
-**Total Modules:** 8  
-**Total Functions:** 56  
-**Database:** PostgreSQL 15+ (`sales_db`)  
-**Cache:** Redis 7+  
-**Message Queue:** RabbitMQ
+**Service:** Sales Service (Quản lý Bán hàng)  
+**Port:** 8003  
+**Database:** `sales_db` (PostgreSQL)  
+**Tech Stack:** ASP.NET Core 8.0 + Entity Framework Core  
+**Total Functions:** 62  
+**Total Modules:** 7
+
+---
+
+## 📋 MỤC LỤC
+
+1. [PRODUCT MANAGEMENT (7 functions)](#module-1-product-management-7-functions)
+2. [QUOTATION MANAGEMENT (9 functions)](#module-2-quotation-management-9-functions)
+3. [ORDER MANAGEMENT (12 functions)](#module-3-order-management-12-functions)
+4. [CONTRACT MANAGEMENT (8 functions)](#module-4-contract-management-8-functions)
+5. [INVENTORY MANAGEMENT (11 functions)](#module-5-inventory-management-11-functions)
+6. [INVOICE MANAGEMENT (9 functions)](#module-6-invoice-management-9-functions)
+7. [SALES REPORTS (6 functions)](#module-7-sales-reports-6-functions)
+8. [KEY FLOWS](#key-flows)
+9. [CHECKLIST FIGMA](#checklist-figma)
 
 ---
 
@@ -13,7 +27,7 @@
 
 | # | Function | Nhiệm vụ | Input | Output |
 |---|----------|----------|-------|--------|
-| 1.1 | **Create Product** | Tạo sản phẩm/dịch vụ mới với variants | `workspaceId`, `sku`, `name`, `type`, `price`, `variants[]` | `productId`, `sku`, `success` |
+| 1.1 | **Create Product** | Tạo sản phẩm mới với variants | `workspaceId`, `sku`, `name`, `price`, `variants[]` | `productId`, `sku`, `success` |
 | 1.2 | **Update Product** | Cập nhật thông tin sản phẩm | `productId`, `data` (name, price, description) | `success`, `product` |
 | 1.3 | **Delete Product** | Xóa sản phẩm (soft delete) | `productId`, `workspaceId` | `success` |
 | 1.4 | **Get Product Details** | Lấy chi tiết sản phẩm + inventory + stats | `productId` | `product` object với variants, stock, sales stats |
@@ -23,242 +37,245 @@
 
 ---
 
-## 📊 MODULE 2: INVENTORY MANAGEMENT (8 functions)
+## 💰 MODULE 2: QUOTATION MANAGEMENT (9 functions)
 
 | # | Function | Nhiệm vụ | Input | Output |
 |---|----------|----------|-------|--------|
-| 2.1 | **Create Warehouse** | Tạo kho hàng mới | `workspaceId`, `code`, `name`, `address`, `capacity` | `warehouseId`, `success` |
-| 2.2 | **Stock Adjustment** | Điều chỉnh tồn kho (nhập/xuất/kiểm kê) | `warehouseId`, `type`, `items[]`, `reason` | `adjustmentId`, `success` |
-| 2.3 | **Stock Transfer** | Chuyển hàng giữa các kho | `fromWarehouseId`, `toWarehouseId`, `items[]` | `transferId`, `trackingNumber` |
-| 2.4 | **Get Stock Level** | Lấy thông tin tồn kho sản phẩm | `productId`, `warehouseId` | `totalStock`, `available`, `reserved`, `warehouses[]` |
-| 2.5 | **Stock Reservation** | Giữ hàng cho đơn hàng | `orderId`, `warehouseId`, `items[]`, `expiresAt` | `reservationId`, `success` |
-| 2.6 | **Stock Count** | Tạo phiên kiểm kê tồn kho | `warehouseId`, `countType`, `productIds[]`, `assignedTo[]` | `stockCountId`, `success` |
-| 2.7 | **Low Stock Alerts** | Lấy danh sách sản phẩm sắp hết hàng | `workspaceId`, `warehouseId` | `alerts[]` với product, currentStock, threshold |
-| 2.8 | **Inventory Valuation** | Báo cáo giá trị tồn kho (FIFO/LIFO) | `warehouseId`, `date`, `method` | `totalValue`, `products[]` với quantity, cost |
+| 2.1 | **Create Quotation** | Tạo báo giá cho khách hàng | `workspaceId`, `customerId`, `items[]`, `discount`, `validUntil` | `quotationId`, `code`, `total` |
+| 2.2 | **Get Quotation Details** | Xem chi tiết báo giá | `quotationId` | `quotation` object với items, customer, pricing |
+| 2.3 | **Update Quotation** | Cập nhật báo giá (draft/sent only) | `quotationId`, `data` | `success`, `quotation` |
+| 2.4 | **Send Quotation** | Gửi báo giá qua email (PDF) | `quotationId`, `emailTo` | `success`, `sentAt` |
+| 2.5 | **List Quotations** | Danh sách báo giá với filters | `workspaceId`, `filters`, `pagination` | `quotations[]`, `total` |
+| 2.6 | **Delete Quotation** | Xóa báo giá (soft delete) | `quotationId` | `success` |
+| 2.7 | **Duplicate Quotation** | Tạo bản sao báo giá | `quotationId` | `newQuotationId` |
+| 2.8 | **Convert to Order** | Chuyển báo giá thành đơn hàng | `quotationId` | `orderId`, `success` |
+| 2.9 | **Export Quotations** | Xuất báo giá ra Excel/PDF | `workspaceId`, `filters` | `fileUrl` |
 
 ---
 
-## 🛒 MODULE 3: ORDER MANAGEMENT (9 functions)
+## 🛍️ MODULE 3: ORDER MANAGEMENT (12 functions)
 
 | # | Function | Nhiệm vụ | Input | Output |
 |---|----------|----------|-------|--------|
-| 3.1 | **Create Sales Order** | Tạo đơn hàng bán | `workspaceId`, `customerId`, `items[]`, `shipping`, `payment` | `orderId`, `orderNumber`, `total` |
-| 3.2 | **Update Order Status** | Cập nhật trạng thái đơn hàng | `orderId`, `status`, `notes`, `notifyCustomer` | `success`, `newStatus` |
-| 3.3 | **Get Order Details** | Lấy chi tiết đơn hàng đầy đủ | `orderId` | `order` object với items, payments, history |
-| 3.4 | **List Orders** | Lấy danh sách đơn hàng với filters | `workspaceId`, `filters`, `pagination` | `orders[]`, `total` |
-| 3.5 | **Cancel Order** | Hủy đơn hàng + release stock | `orderId`, `reason`, `restockItems` | `success` |
-| 3.6 | **Add Order Note** | Thêm ghi chú cho đơn hàng | `orderId`, `content`, `isInternal`, `attachments[]` | `noteId`, `success` |
-| 3.7 | **Create Return Order** | Tạo đơn trả hàng | `orderId`, `items[]`, `reason`, `refundMethod` | `returnOrderId`, `success` |
-| 3.8 | **Order Fulfillment** | Xử lý đóng gói và chuẩn bị giao | `orderId`, `warehouseId`, `items[]`, `packageInfo` | `fulfillmentId`, `success` |
-| 3.9 | **Shipping Integration** | Tạo vận đơn với đơn vị vận chuyển | `orderId`, `shippingProvider`, `serviceType` | `trackingNumber`, `shippingLabel` |
+| 3.1 | **Create Order** | Tạo đơn hàng — Reserve stock ngay | `workspaceId`, `customerId`, `items[]`, `shipping` | `orderId`, `code`, `total` |
+| 3.2 | **Get Order Details** | Xem chi tiết đơn hàng + history | `orderId` | `order` object đầy đủ |
+| 3.3 | **Update Order** | Cập nhật đơn hàng (pending/confirmed only) | `orderId`, `data` | `success`, `order` |
+| 3.4 | **Delete Order** | Xóa đơn hàng (draft only) | `orderId` | `success` |
+| 3.5 | **List Orders** | Danh sách đơn hàng với filters | `workspaceId`, `filters`, `pagination` | `orders[]`, `total` |
+| 3.6 | **Search Orders** | Tìm kiếm đơn hàng theo code/customer | `query` | `orders[]` |
+| 3.7 | **Update Order Status** | Cập nhật trạng thái (pending → shipping → delivered) | `orderId`, `status`, `notes` | `success`, `order` |
+| 3.8 | **Cancel Order** | Hủy đơn hàng — Release stock | `orderId`, `reason` | `success` |
+| 3.9 | **Split Order** | Tách đơn hàng (giao nhiều lần) | `orderId`, `items[]` | `newOrderIds[]` |
+| 3.10 | **Merge Orders** | Gộp nhiều đơn hàng | `orderIds[]` | `newOrderId` |
+| 3.11 | **Complete Order** | Hoàn thành đơn hàng → Auto tạo invoice | `orderId` | `success`, `invoiceId` |
+| 3.12 | **Export Orders** | Xuất đơn hàng ra Excel/PDF | `filters` | `fileUrl` |
 
 ---
 
-## 💼 MODULE 4: SALES MANAGEMENT (6 functions)
+## 📄 MODULE 4: CONTRACT MANAGEMENT (8 functions)
 
 | # | Function | Nhiệm vụ | Input | Output |
 |---|----------|----------|-------|--------|
-| 4.1 | **Create Opportunity** | Tạo cơ hội bán hàng mới | `workspaceId`, `customerId`, `name`, `value`, `stage`, `products[]` | `opportunityId`, `success` |
-| 4.2 | **Update Opportunity Stage** | Cập nhật giai đoạn opportunity | `opportunityId`, `stage`, `probability`, `notes` | `success`, `newStage` |
-| 4.3 | **Convert to Order** | Chuyển opportunity thành đơn hàng | `opportunityId`, `orderData` | `orderId`, `orderNumber` |
-| 4.4 | **Sales Targets & KPIs** | Tạo/theo dõi mục tiêu doanh số | `workspaceId`, `period`, `targetValue`, `assignedTo[]` | `targetId`, `progress` |
-| 4.5 | **Commission Calculation** | Tính hoa hồng cho sales team | `workspaceId`, `period`, `commissionRules[]` | `totalCommission`, `users[]` với breakdown |
-| 4.6 | **Sales Analytics** | Dashboard phân tích doanh số | `workspaceId`, `period`, `filters` | `revenue`, `orders`, `topProducts[]`, `trends[]` |
+| 4.1 | **Create Contract** | Tạo hợp đồng bán hàng (dài hạn) | `workspaceId`, `customerId`, `quotationId`, `terms` | `contractId`, `code` |
+| 4.2 | **Get Contract Details** | Xem chi tiết hợp đồng + progress | `contractId` | `contract` object |
+| 4.3 | **Update Contract** | Cập nhật hợp đồng (draft only) | `contractId`, `data` | `success` |
+| 4.4 | **List Contracts** | Danh sách hợp đồng với filters | `workspaceId`, `filters` | `contracts[]` |
+| 4.5 | **Delete Contract** | Xóa hợp đồng (draft only) | `contractId` | `success` |
+| 4.6 | **Sign Contract** | Ký hợp đồng — Upload signed PDF | `contractId`, `signedDocument` | `success`, `signedAt` |
+| 4.7 | **Create Orders from Contract** | Tạo đơn hàng theo lịch giao hàng | `contractId`, `schedule` | `orderIds[]` |
+| 4.8 | **Track Contract Progress** | Theo dõi tiến độ giao hàng & thanh toán | `contractId` | `progress` object |
 
 ---
 
-## 📋 MODULE 5: QUOTE MANAGEMENT (7 functions)
+## 📦 MODULE 5: INVENTORY MANAGEMENT (11 functions)
 
 | # | Function | Nhiệm vụ | Input | Output |
 |---|----------|----------|-------|--------|
-| 5.1 | **Create Quote** | Tạo báo giá mới | `workspaceId`, `customerId`, `items[]`, `validUntil`, `terms` | `quoteId`, `quoteNumber` |
-| 5.2 | **Send Quote** | Gửi báo giá cho khách qua email | `quoteId`, `recipientEmail`, `message`, `attachPDF` | `success`, `sentAt` |
-| 5.3 | **Accept/Reject Quote** | Khách hàng phản hồi báo giá | `quoteId`, `action`, `signature`, `notes` | `success`, `newStatus` |
-| 5.4 | **Convert Quote to Order** | Chuyển báo giá thành đơn hàng | `quoteId`, `orderData` | `orderId`, `orderNumber` |
-| 5.5 | **Create Quote Revision** | Tạo phiên bản mới của báo giá | `quoteId`, `reason`, `changes` | `newQuoteId`, `revisionNumber` |
-| 5.6 | **Quote Templates** | Tạo/sử dụng template báo giá | `workspaceId`, `templateData` | `templateId`, `success` |
-| 5.7 | **Quote Analytics** | Phân tích hiệu quả báo giá | `workspaceId`, `period` | `totalQuotes`, `acceptanceRate`, `conversionRate` |
+| 5.1 | **Get Stock Summary** | Xem tổng quan tồn kho toàn workspace | `workspaceId` | `summary` object |
+| 5.2 | **Get Product Stock** | Xem tồn kho chi tiết sản phẩm | `productId` | `stock` object (total, reserved, available) |
+| 5.3 | **Stock In (Nhập kho)** | Nhập hàng vào kho | `productId`, `quantity`, `purchaseOrderId` | `transactionId`, `newStock` |
+| 5.4 | **Stock Out (Xuất kho)** | Xuất hàng không qua đơn hàng | `productId`, `quantity`, `reason` | `transactionId`, `newStock` |
+| 5.5 | **Stock Transfer** | Chuyển kho giữa các warehouse | `productId`, `fromWarehouse`, `toWarehouse`, `quantity` | `transactionId` |
+| 5.6 | **Stock Adjustment** | Điều chỉnh tồn kho (kiểm kê) | `productId`, `actualQuantity`, `reason` | `transactionId` |
+| 5.7 | **Reserve Stock** | Giữ hàng cho order — Update reserved_stock | `orderId`, `items[]` | `success` |
+| 5.8 | **Release Reserved Stock** | Hủy giữ hàng (order cancelled) | `orderId` | `success` |
+| 5.9 | **Deduct Stock** | Trừ tồn kho thực (order shipping) | `orderId` | `success` |
+| 5.10 | **Low Stock Alert** | Danh sách sản phẩm sắp hết hàng | `workspaceId`, `threshold` | `products[]` |
+| 5.11 | **Stock Transaction History** | Lịch sử nhập/xuất/điều chỉnh | `productId`, `dateRange` | `transactions[]` |
 
 ---
 
-## 📄 MODULE 6: CONTRACT MANAGEMENT (7 functions)
+## 🧾 MODULE 6: INVOICE MANAGEMENT (9 functions)
 
 | # | Function | Nhiệm vụ | Input | Output |
 |---|----------|----------|-------|--------|
-| 6.1 | **Create Contract** | Tạo hợp đồng bán hàng | `workspaceId`, `customerId`, `value`, `terms`, `signatories[]` | `contractId`, `contractNumber` |
-| 6.2 | **Send for Signature** | Gửi hợp đồng để ký điện tử | `contractId`, `signatureProvider`, `message` | `envelopeId`, `signatureUrl` |
-| 6.3 | **Sign Contract** | Ký hợp đồng (internal signature) | `contractId`, `signatoryId`, `signature`, `ipAddress` | `success`, `signedAt` |
-| 6.4 | **Activate Contract** | Kích hoạt hợp đồng sau khi ký | `contractId`, `activationDate`, `notes` | `success`, `activeStatus` |
-| 6.5 | **Renew Contract** | Gia hạn hợp đồng | `contractId`, `newEndDate`, `priceAdjustment` | `renewedContractId`, `success` |
-| 6.6 | **Terminate Contract** | Chấm dứt hợp đồng trước hạn | `contractId`, `terminationDate`, `reason`, `penalty` | `success` |
-| 6.7 | **Contract Compliance** | Theo dõi tuân thủ điều khoản | `contractId` | `complianceStatus`, `checks[]`, `milestones[]` |
+| 6.1 | **Create Invoice** | Tạo hóa đơn từ order/contract | `orderId` hoặc `contractId` | `invoiceId`, `code` |
+| 6.2 | **Get Invoice Details** | Xem chi tiết hóa đơn + payments | `invoiceId` | `invoice` object |
+| 6.3 | **Update Invoice** | Cập nhật hóa đơn (draft only) | `invoiceId`, `data` | `success` |
+| 6.4 | **Delete Invoice** | Xóa hóa đơn (draft only) | `invoiceId` | `success` |
+| 6.5 | **List Invoices** | Danh sách hóa đơn với filters | `workspaceId`, `filters` | `invoices[]` |
+| 6.6 | **Record Payment** | Ghi nhận thanh toán — Update status | `invoiceId`, `amount`, `method` | `paymentId`, `success` |
+| 6.7 | **Void Invoice** | Hủy hóa đơn (sai/duplicate) | `invoiceId`, `reason` | `success` |
+| 6.8 | **Send Invoice** | Gửi hóa đơn qua email (PDF) | `invoiceId`, `emailTo` | `success`, `sentAt` |
+| 6.9 | **Track Receivables** | Theo dõi công nợ phải thu | `workspaceId` | `receivables` object |
 
 ---
 
-## 💰 MODULE 7: PRICING & DISCOUNT (6 functions)
+## 📊 MODULE 7: SALES REPORTS (6 functions)
 
 | # | Function | Nhiệm vụ | Input | Output |
 |---|----------|----------|-------|--------|
-| 7.1 | **Create Price List** | Tạo bảng giá cho segment khách hàng | `workspaceId`, `name`, `currency`, `applicableTo`, `priceRules[]` | `priceListId`, `success` |
-| 7.2 | **Volume Pricing** | Tạo giá theo số lượng mua (tiers) | `workspaceId`, `productId`, `tiers[]` | `volumePricingId`, `success` |
-| 7.3 | **Create Discount Campaign** | Tạo chiến dịch giảm giá | `workspaceId`, `name`, `type`, `value`, `conditions`, `period` | `campaignId`, `success` |
-| 7.4 | **Generate Discount Code** | Tạo mã giảm giá | `workspaceId`, `campaignId`, `code`, `usageLimit`, `conditions` | `codeId`, `code` |
-| 7.5 | **Apply Discount to Order** | Áp dụng discount vào đơn hàng | `orderId`, `discountCode` | `success`, `discountAmount`, `newTotal` |
-| 7.6 | **Discount Performance** | Báo cáo hiệu quả chiến dịch giảm giá | `campaignId`, `period` | `totalOrders`, `revenue`, `totalDiscount`, `roi` |
-
----
-
-## 🧾 MODULE 8: INVOICE & PAYMENT (6 functions)
-
-| # | Function | Nhiệm vụ | Input | Output |
-|---|----------|----------|-------|--------|
-| 8.1 | **Create Invoice** | Tạo hóa đơn | `workspaceId`, `customerId`, `orderId`, `items[]`, `dueDate` | `invoiceId`, `invoiceNumber`, `pdfUrl` |
-| 8.2 | **Record Payment** | Ghi nhận thanh toán | `invoiceId`, `amount`, `paymentMethod`, `reference`, `attachments[]` | `paymentId`, `success`, `paymentStatus` |
-| 8.3 | **Send Invoice** | Gửi hóa đơn cho khách qua email | `invoiceId`, `recipientEmail`, `message`, `attachPDF` | `success`, `sentAt` |
-| 8.4 | **Payment Reminder** | Gửi nhắc nở thanh toán | `invoiceId`, `reminderType`, `message` | `success` |
-| 8.5 | **Accounts Receivable** | Báo cáo công nợ phải thu | `workspaceId`, `asOfDate`, `customerId` | `totalReceivable`, `aging[]`, `customers[]` |
-| 8.6 | **Create Credit Note** | Tạo hóa đơn điều chỉnh/hoàn trả | `invoiceId`, `items[]`, `reason`, `refundMethod` | `creditNoteId`, `creditAmount` |
+| 7.1 | **Sales Overview Report** | Tổng quan doanh thu, đơn hàng, KH | `workspaceId`, `dateRange` | `overview` object |
+| 7.2 | **Sales by Product** | Báo cáo bán hàng theo sản phẩm | `workspaceId`, `dateRange` | `products[]` với revenue, profit |
+| 7.3 | **Sales by Customer** | Báo cáo theo khách hàng (top KH) | `workspaceId`, `dateRange` | `customers[]` |
+| 7.4 | **Sales by Agent** | Báo cáo theo nhân viên bán hàng | `workspaceId`, `dateRange` | `agents[]` với commission |
+| 7.5 | **Revenue Forecast** | Dự báo doanh thu (linear regression) | `workspaceId`, `months` | `forecast[]` |
+| 7.6 | **Export Reports** | Xuất báo cáo ra Excel/PDF | `reportType`, `filters` | `fileUrl` |
 
 ---
 
 ## 🔄 KEY FLOWS
 
-### Flow 1: Product → Inventory → Order
+### Flow 1: Quotation → Order (Báo giá → Đơn hàng)
 ```
-1. Admin → Create Product (1.1) → Tạo sản phẩm với SKU, giá
-2. Admin → Stock Adjustment (2.2) → Nhập hàng vào kho
-3. Customer → Create Sales Order (3.1) → Tạo đơn hàng
-4. System → Stock Reservation (2.5) → Giữ hàng cho đơn
-5. Admin → Update Order Status (3.2) → Xác nhận đơn hàng
-6. System → Deduct stock when shipped
-```
-
-### Flow 2: Quote → Order → Invoice → Payment
-```
-1. Sales → Create Quote (5.1) → Tạo báo giá
-2. Sales → Send Quote (5.2) → Gửi cho khách hàng
-3. Customer → Accept Quote (5.3) → Chấp nhận báo giá
-4. Sales → Convert Quote to Order (5.4) → Tạo đơn hàng
-5. System → Create Invoice (8.1) → Tạo hóa đơn tự động
-6. Admin → Record Payment (8.2) → Ghi nhận thanh toán
-7. System → Update order status to "completed"
+1. Sales → Create Quotation (2.1) → Tạo báo giá cho KH
+2. Sales → Send Quotation (2.4) → Gửi email PDF báo giá
+3. Customer → Accept quotation (external)
+4. Sales → Convert to Order (2.8) → Chuyển báo giá thành đơn hàng
+   → System auto Reserve Stock (5.7)
+5. Sales → Update Order Status (3.7) → Confirmed → Processing → Shipping
+   → System auto Deduct Stock (5.9) khi status = Shipping
+6. Sales → Complete Order (3.11) → Auto create Invoice (6.1)
+7. Sales → Record Payment (6.6) → Ghi nhận thanh toán
 ```
 
-### Flow 3: Opportunity → Quote → Contract → Order
+### Flow 2: Direct Order (Đơn hàng trực tiếp)
 ```
-1. Sales → Create Opportunity (4.1) → Tạo cơ hội bán hàng
-2. Sales → Update Stage (4.2) → qualification → proposal → negotiation
-3. Sales → Create Quote (5.1) → Gửi báo giá
-4. Sales → Create Contract (6.1) → Tạo hợp đồng
-5. Both Parties → Sign Contract (6.3) → Ký hợp đồng điện tử
-6. Sales → Convert to Order (4.3) → Chuyển thành đơn hàng
-7. System → Create Invoice (8.1) → Xuất hóa đơn
-```
-
-### Flow 4: Multi-warehouse Stock Transfer
-```
-1. Admin → Get Stock Level (2.4) → Kiểm tra tồn kho HN: 100, HCM: 10
-2. Admin → Stock Transfer (2.3) → Chuyển 50 từ HN xuống HCM
-3. System → Update status: in_transit
-4. Warehouse HCM → Confirm received → Update status: delivered
-5. System → Update stock: HN: 50, HCM: 60
+1. Sales → Create Order (3.1) → Tạo đơn hàng
+   → System check stock availability
+   → System auto Reserve Stock (5.7)
+2. Sales → Update Order Status (3.7) → Confirmed → Processing → Shipping
+   → System auto Deduct Stock (5.9) khi status = Shipping
+3. Sales → Complete Order (3.11) → Auto create Invoice (6.1)
+4. Sales → Record Payment (6.6) → Update invoice status
 ```
 
-### Flow 5: Discount Campaign → Order
+### Flow 3: Contract Sales (Hợp đồng bán hàng)
 ```
-1. Marketing → Create Discount Campaign (7.3) → Summer Sale 20%
-2. Marketing → Generate Discount Code (7.4) → SUMMER2026
-3. Customer → Create Sales Order (3.1) → Đơn hàng 100M
-4. Customer → Apply Discount (7.5) → Nhập mã SUMMER2026
-5. System → Validate code → Apply 20% discount → Total: 80M
-6. System → Track usage count
+1. Sales → Create Quotation (2.1) → Tạo báo giá
+2. Sales → Create Contract (4.1) → Tạo hợp đồng từ quotation
+   → Set payment schedule (30% ký, 40% giao 50%, 30% hoàn thành)
+   → Set delivery schedule (3 đợt giao hàng)
+3. Customer → Sign Contract (4.6) → Upload signed PDF
+4. Sales → Create Orders from Contract (4.7) → Tạo orders theo lịch giao
+5. Sales → Track Contract Progress (4.8) → Theo dõi tiến độ
+6. System → Auto create Invoices theo payment milestones
 ```
 
-### Flow 6: Stock Count & Adjustment
+### Flow 4: Inventory Management (Quản lý kho)
 ```
-1. Admin → Create Stock Count (2.6) → Kiểm kê kho HN
-2. Warehouse Staff → Count physical stock → Update counted quantities
-3. System → Calculate variances → System: 100, Actual: 95
-4. Admin → Approve stock count
-5. System → Auto Stock Adjustment (2.2) → Điều chỉnh -5
-6. System → Update inventory records
+1. Warehouse → Stock In (5.3) → Nhập hàng vào kho
+   → Update total_stock
+2. Sales → Create Order (3.1) → Reserve Stock (5.7)
+   → Update reserved_stock
+3. Sales → Update Order Status (3.7) → Shipping → Deduct Stock (5.9)
+   → Update total_stock (trừ đi)
+   → Update reserved_stock (release)
+4. System → Low Stock Alert (5.10) → Notify khi stock < threshold
+5. Warehouse → Stock Adjustment (5.6) → Kiểm kê định kỳ
+```
+
+### Flow 5: Invoice & Payment (Hóa đơn & Thanh toán)
+```
+1. Sales → Complete Order (3.11) → Auto create Invoice (6.1)
+   → Status = Unpaid
+2. Sales → Send Invoice (6.8) → Email PDF invoice to customer
+3. Customer → Pays (external)
+4. Sales → Record Payment (6.6) → Input amount, method, date
+   → If full paid → Invoice status = Paid
+   → If partial → Invoice status = Partial
+5. Admin → Track Receivables (6.9) → Xem danh sách công nợ
 ```
 
 ---
 
 ## ✅ CHECKLIST FIGMA
 
-### ⬜ MODULE 1: PRODUCT MANAGEMENT (0%)
-- ⬜ 1.1 Create Product - Dialog tạo sản phẩm với variants
-- ⬜ 1.2 Update Product - Form cập nhật sản phẩm
-- ⬜ 1.3 Delete Product - Dialog xác nhận xóa
-- ⬜ 1.4 Get Product Details - UI chi tiết sản phẩm + stock
-- ⬜ 1.5 List Products - Table danh sách với filters
-- ⬜ 1.6 Manage Categories - Tree view categories
-- ⬜ 1.7 Bulk Import Products - Upload Excel/CSV
+### ✅ MODULE 1: PRODUCT MANAGEMENT (100%)
+- ✅ 1.1 Create Product - Dialog tạo sản phẩm với variants
+- ✅ 1.2 Update Product - Dialog cập nhật thông tin
+- ✅ 1.3 Delete Product - Dialog xác nhận xóa
+- ✅ 1.4 Get Product Details - UI hiển thị chi tiết + stock + stats
+- ✅ 1.5 List Products - Table danh sách sản phẩm với filters
+- ✅ 1.6 Manage Categories - Tree view categories
+- ✅ 1.7 Bulk Import Products - Dialog upload Excel/CSV
 
-### ⬜ MODULE 2: INVENTORY MANAGEMENT (0%)
-- ⬜ 2.1 Create Warehouse - Dialog tạo kho
-- ⬜ 2.2 Stock Adjustment - Form nhập/xuất kho
-- ⬜ 2.3 Stock Transfer - UI chuyển kho với tracking
-- ⬜ 2.4 Get Stock Level - Card hiển thị tồn kho
-- ⬜ 2.5 Stock Reservation - UI giữ hàng
-- ⬜ 2.6 Stock Count - UI kiểm kê với checklist
-- ⬜ 2.7 Low Stock Alerts - Notification panel
-- ⬜ 2.8 Inventory Valuation - Report với chart
+### ✅ MODULE 2: QUOTATION MANAGEMENT (100%)
+- ✅ 2.1 Create Quotation - Dialog tạo báo giá với product selector
+- ✅ 2.2 Get Quotation Details - UI hiển thị chi tiết + preview PDF
+- ✅ 2.3 Update Quotation - Dialog cập nhật
+- ✅ 2.4 Send Quotation - Dialog nhập email + preview
+- ✅ 2.5 List Quotations - Table với status badges
+- ✅ 2.6 Delete Quotation - Dialog xác nhận xóa
+- ✅ 2.7 Duplicate Quotation - Button "Duplicate"
+- ✅ 2.8 Convert to Order - Button "Chuyển thành đơn hàng"
+- ✅ 2.9 Export Quotations - Button "Xuất Excel"
 
-### ⬜ MODULE 3: ORDER MANAGEMENT (0%)
-- ⬜ 3.1 Create Sales Order - Form tạo đơn hàng
-- ⬜ 3.2 Update Order Status - Dropdown status với timeline
-- ⬜ 3.3 Get Order Details - UI chi tiết đơn đầy đủ
-- ⬜ 3.4 List Orders - Table với filters & search
-- ⬜ 3.5 Cancel Order - Dialog xác nhận hủy
-- ⬜ 3.6 Add Order Note - Comment box
-- ⬜ 3.7 Create Return Order - Dialog trả hàng
-- ⬜ 3.8 Order Fulfillment - UI picking & packing
-- ⬜ 3.9 Shipping Integration - UI tạo vận đơn
+### ✅ MODULE 3: ORDER MANAGEMENT (100%)
+- ✅ 3.1 Create Order - Dialog tạo đơn hàng với stock check
+- ✅ 3.2 Get Order Details - UI chi tiết order + timeline
+- ✅ 3.3 Update Order - Dialog cập nhật
+- ✅ 3.4 Delete Order - Dialog xác nhận xóa
+- ✅ 3.5 List Orders - Table với status flow UI
+- ✅ 3.6 Search Orders - Search box với autocomplete
+- ✅ 3.7 Update Order Status - Dropdown status với confirmation
+- ✅ 3.8 Cancel Order - Dialog nhập lý do hủy
+- ✅ 3.9 Split Order - Dialog chọn items để tách
+- ✅ 3.10 Merge Orders - Dialog chọn orders để gộp
+- ✅ 3.11 Complete Order - Button "Hoàn thành" → Auto tạo invoice
+- ✅ 3.12 Export Orders - Button "Xuất Excel"
 
-### ⬜ MODULE 4: SALES MANAGEMENT (0%)
-- ⬜ 4.1 Create Opportunity - Dialog tạo opportunity
-- ⬜ 4.2 Update Opportunity Stage - Kanban board
-- ⬜ 4.3 Convert to Order - Dialog convert
-- ⬜ 4.4 Sales Targets & KPIs - Dashboard với progress bars
-- ⬜ 4.5 Commission Calculation - Table với breakdown
-- ⬜ 4.6 Sales Analytics - Dashboard với charts
+### ✅ MODULE 4: CONTRACT MANAGEMENT (100%)
+- ✅ 4.1 Create Contract - Dialog tạo hợp đồng với payment/delivery schedule
+- ✅ 4.2 Get Contract Details - UI hiển thị contract + progress bars
+- ✅ 4.3 Update Contract - Dialog cập nhật
+- ✅ 4.4 List Contracts - Table với status + progress
+- ✅ 4.5 Delete Contract - Dialog xác nhận xóa
+- ✅ 4.6 Sign Contract - Dialog upload signed PDF
+- ✅ 4.7 Create Orders from Contract - Dialog chọn delivery schedule
+- ✅ 4.8 Track Contract Progress - UI progress tracking (delivery + payment)
 
-### ⬜ MODULE 5: QUOTE MANAGEMENT (0%)
-- ⬜ 5.1 Create Quote - Form tạo báo giá
-- ⬜ 5.2 Send Quote - Dialog gửi email
-- ⬜ 5.3 Accept/Reject Quote - UI khách hàng phản hồi
-- ⬜ 5.4 Convert Quote to Order - Dialog convert
-- ⬜ 5.5 Create Quote Revision - UI version control
-- ⬜ 5.6 Quote Templates - Template gallery
-- ⬜ 5.7 Quote Analytics - Dashboard báo cáo
+### ✅ MODULE 5: INVENTORY MANAGEMENT (100%)
+- ✅ 5.1 Get Stock Summary - Dashboard cards tổng quan kho
+- ✅ 5.2 Get Product Stock - UI hiển thị stock by warehouse/variant
+- ✅ 5.3 Stock In - Dialog nhập kho với batch/expiry
+- ✅ 5.4 Stock Out - Dialog xuất kho với reason
+- ✅ 5.5 Stock Transfer - Dialog chọn from/to warehouse
+- ✅ 5.6 Stock Adjustment - Dialog kiểm kê với actual quantity
+- ✅ 5.7 Reserve Stock - Logic auto khi tạo order
+- ✅ 5.8 Release Reserved Stock - Logic auto khi cancel order
+- ✅ 5.9 Deduct Stock - Logic auto khi order shipping
+- ✅ 5.10 Low Stock Alert - Badge/notification list
+- ✅ 5.11 Stock Transaction History - Table lịch sử nhập/xuất
 
-### ⬜ MODULE 6: CONTRACT MANAGEMENT (0%)
-- ⬜ 6.1 Create Contract - Form tạo hợp đồng
-- ⬜ 6.2 Send for Signature - Dialog e-signature
-- ⬜ 6.3 Sign Contract - UI ký điện tử
-- ⬜ 6.4 Activate Contract - Dialog kích hoạt
-- ⬜ 6.5 Renew Contract - Dialog gia hạn
-- ⬜ 6.6 Terminate Contract - Dialog chấm dứt
-- ⬜ 6.7 Contract Compliance - Dashboard tuân thủ
+### ✅ MODULE 6: INVOICE MANAGEMENT (100%)
+- ✅ 6.1 Create Invoice - Dialog tạo hóa đơn (auto từ order)
+- ✅ 6.2 Get Invoice Details - UI hiển thị invoice + payments
+- ✅ 6.3 Update Invoice - Dialog cập nhật
+- ✅ 6.4 Delete Invoice - Dialog xác nhận xóa
+- ✅ 6.5 List Invoices - Table với payment status + overdue badge
+- ✅ 6.6 Record Payment - Dialog ghi nhận thanh toán
+- ✅ 6.7 Void Invoice - Dialog nhập lý do hủy
+- ✅ 6.8 Send Invoice - Dialog nhập email + preview PDF
+- ✅ 6.9 Track Receivables - UI aging report + top debtors
 
-### ⬜ MODULE 7: PRICING & DISCOUNT (0%)
-- ⬜ 7.1 Create Price List - Form bảng giá
-- ⬜ 7.2 Volume Pricing - UI tier pricing
-- ⬜ 7.3 Create Discount Campaign - Form campaign
-- ⬜ 7.4 Generate Discount Code - UI tạo mã giảm giá
-- ⬜ 7.5 Apply Discount to Order - Input field + validation
-- ⬜ 7.6 Discount Performance - Dashboard báo cáo
-
-### ⬜ MODULE 8: INVOICE & PAYMENT (0%)
-- ⬜ 8.1 Create Invoice - Form tạo hóa đơn
-- ⬜ 8.2 Record Payment - Dialog ghi nhận thanh toán
-- ⬜ 8.3 Send Invoice - Dialog gửi email
-- ⬜ 8.4 Payment Reminder - UI nhắc nở
-- ⬜ 8.5 Accounts Receivable - Table aging report
-- ⬜ 8.6 Create Credit Note - Dialog hoàn trả
+### ✅ MODULE 7: SALES REPORTS (100%)
+- ✅ 7.1 Sales Overview Report - Dashboard với charts
+- ✅ 7.2 Sales by Product - Table + bar chart
+- ✅ 7.3 Sales by Customer - Table với customer segments
+- ✅ 7.4 Sales by Agent - Table với commission calculation
+- ✅ 7.5 Revenue Forecast - Line chart với prediction
+- ✅ 7.6 Export Reports - Button "Xuất Excel/PDF"
 
 ---
 
@@ -266,15 +283,14 @@
 
 | Module | Functions | Status | Progress |
 |--------|-----------|--------|----------|
-| 1. Product Management | 7 | ⬜ Pending | 0% |
-| 2. Inventory Management | 8 | ⬜ Pending | 0% |
-| 3. Order Management | 9 | ⬜ Pending | 0% |
-| 4. Sales Management | 6 | ⬜ Pending | 0% |
-| 5. Quote Management | 7 | ⬜ Pending | 0% |
-| 6. Contract Management | 7 | ⬜ Pending | 0% |
-| 7. Pricing & Discount | 6 | ⬜ Pending | 0% |
-| 8. Invoice & Payment | 6 | ⬜ Pending | 0% |
-| **TOTAL** | **56** | **⬜ PENDING** | **0%** |
+| 1. Product Management | 7 | ✅ Done | 100% |
+| 2. Quotation Management | 9 | ✅ Done | 100% |
+| 3. Order Management | 12 | ✅ Done | 100% |
+| 4. Contract Management | 8 | ✅ Done | 100% |
+| 5. Inventory Management | 11 | ✅ Done | 100% |
+| 6. Invoice Management | 9 | ✅ Done | 100% |
+| 7. Sales Reports | 6 | ✅ Done | 100% |
+| **TOTAL** | **62** | **✅ DONE** | **100%** |
 
 ---
 
@@ -282,100 +298,91 @@
 
 ### Tech Stack Details:
 - **Backend:** ASP.NET Core 8.0
-- **ORM:** Entity Framework Core 8.0
-- **Database:** PostgreSQL 15+ (`sales_db`)
-- **Cache:** Redis 7+ (product catalog, stock levels)
-- **Message Queue:** RabbitMQ (order processing, stock updates)
-- **Payment Gateway:** VNPay, Momo, Stripe integration
-- **Shipping APIs:** GHN, Viettel Post, Grab Express, Ninja Van
-- **E-signature:** DocuSign, Adobe Sign integration
+- **ORM:** Entity Framework Core
+- **Database:** PostgreSQL (`sales_db`)
+- **File Storage:** S3/Azure Blob (product images, signed documents)
+- **Email:** SMTP service (quotations, invoices)
+- **PDF Generation:** iTextSharp / Rotativa
+- **Excel Export:** EPPlus / ClosedXML
 
 ### Business Rules:
-- ✅ SKU phải unique trong workspace
-- ✅ Stock reservation tự động khi đơn hàng confirmed
-- ✅ Deduct stock khi đơn shipped
-- ✅ Order status flow: draft → confirmed → processing → shipped → delivered → completed
-- ✅ Cannot cancel order if status = "shipped" or later
-- ✅ Auto apply volume pricing based on quantity
-- ✅ Discount code validation: active, not expired, usage limit
-- ✅ Invoice auto-generated when order completed
-- ✅ Payment reminder auto send 3 days before due date
-- ✅ Batch/Serial number tracking cho products có expiry date
+1. **Stock Reservation Flow:**
+   - Order created → Reserve stock (update `reserved_stock`)
+   - Order cancelled → Release reserved stock
+   - Order shipping → Deduct stock (update `quantity`, release `reserved_stock`)
+   - Reserved stock auto-release after 24h if order not confirmed
 
-### Database Schema (Estimated 25 tables):
-- **Products** table + **ProductVariants**
-- **Categories** table (nested)
-- **Warehouses** table
-- **InventoryLevels** table
-- **StockAdjustments** + **StockAdjustmentItems**
-- **StockTransfers** + **StockTransferItems**
-- **Orders** + **OrderItems** + **OrderStatusHistory**
-- **Quotes** + **QuoteItems** + **QuoteRevisions**
-- **Contracts** + **ContractItems** + **ContractSignatures**
-- **PriceLists** + **PriceListRules**
-- **VolumePricing** + **VolumePricingTiers**
-- **DiscountCampaigns** + **DiscountCodes**
-- **Invoices** + **InvoiceItems** + **Payments**
-- **CreditNotes** + **CreditNoteItems**
-- **SalesOpportunities**
-- **SalesTargets**
-- **Commissions**
+2. **Order Status Flow:**
+   ```
+   Draft → Pending → Confirmed → Processing → Shipping → Delivered → Completed
+     ↓         ↓         ↓
+   Cancelled ← ← (cannot cancel after shipping)
+   ```
 
-### Integration Points:
-- **IAM Service:** Workspace, User permissions, RBAC
-- **CRM Service:** Customers, Deals, Contacts → Link to orders/quotes
-- **Call Service:** Call notes → Order notes, Call → Create order
-- **Chat Service:** Chat orders, Chat → Create quote
-- **Marketing Service:** Campaigns → Discount codes, Lead → Opportunity
-- **Analytics Service:** Sales reports, Revenue analytics, Product performance
-- **Notification Service:** Order status updates, Payment reminders, Low stock alerts
+3. **Pricing Rules:**
+   - Subtotal = Σ(quantity × unit_price - item_discount)
+   - Total = (Subtotal - order_discount) × (1 + tax%) + shipping_fee
+   - Discounts không cộng dồn (chọn discount lớn nhất)
 
-### Key Features:
-- ✅ Multi-variant products (SKU per variant)
-- ✅ Multi-warehouse inventory tracking
-- ✅ Batch/Serial number tracking
-- ✅ Stock reservation system
-- ✅ FIFO/LIFO inventory valuation
-- ✅ Quote → Order → Invoice flow
-- ✅ E-signature for contracts
-- ✅ Volume pricing & tiered discounts
-- ✅ Payment tracking (partial payments)
-- ✅ Accounts receivable aging report
-- ✅ Sales pipeline & opportunity management
-- ✅ Commission calculation (tiered)
-- ✅ Shipping provider integration
-- ✅ Return order processing
+4. **Invoice Rules:**
+   - Auto generate từ completed order
+   - Due date = Issue date + Payment terms (default 15 days)
+   - Status: Draft → Sent → Unpaid → Partial → Paid → Overdue
+   - Allow partial payment
+   - Auto send reminder 3 days before due date
 
-### Order Status Flow:
-```
-draft → confirmed → processing → shipped → delivered → completed
-  ↓         ↓           ↓           ↓
-cancelled  on_hold   on_hold    returned
-```
+5. **Contract Rules:**
+   - Payment schedule total = 100%
+   - Auto create orders theo delivery schedule
+   - Track progress: Delivery % và Payment %
+   - Cannot delete/modify after signed
 
-### Quote Status Flow:
-```
-draft → sent → viewed → accepted → converted_to_order
-          ↓      ↓         ↓
-      expired rejected  expired
-```
+### Database Schema:
+- **products** table (SKU unique, soft delete)
+- **product_variants** table (color, size, etc.)
+- **categories** table (nested categories)
+- **quotations** table
+- **quotation_items** table
+- **orders** table (auto-generate code: ORD-YYYYMMDD-XXX)
+- **order_items** table
+- **contracts** table (code: CT-YYYYMMDD-XXX)
+- **contract_payment_schedule** table
+- **contract_delivery_schedule** table
+- **inventory** table (total_stock, reserved_stock, available_stock)
+- **stock_transactions** table (in, out, deduct, adjustment)
+- **invoices** table (code: INV-YYYYMMDD-XXX)
+- **payments** table
+- **price_lists** table (customer-specific pricing)
+- **discounts** table (promotion rules)
 
-### Contract Status Flow:
-```
-draft → pending_signature → signed → active → completed
-  ↓                            ↓        ↓
-cancelled                  rejected  expired
-```
+### Integration Dependencies:
+- **CRM Service:** Customer data (name, email, address, segment)
+- **IAM Service:** User authentication, workspace context, permissions
+- **Notification Service:** Email quotations/invoices, SMS order confirmations
+- **Accounting Service:** Revenue tracking, cost accounting, profit calculation
+- **Payment Gateway:** VNPay, Momo, Stripe (online payments)
 
-### Stock Transfer Status Flow:
-```
-draft → pending → in_transit → delivered → completed
-                      ↓
-                  cancelled
-```
+### Permissions:
+- **Products:** `sales.products.view`, `sales.products.create`, `sales.products.update`, `sales.products.delete`, `sales.products.import`
+- **Quotations:** `sales.quotations.view`, `sales.quotations.create`, `sales.quotations.update`, `sales.quotations.send`, `sales.quotations.convert`
+- **Orders:** `sales.orders.view`, `sales.orders.create`, `sales.orders.update`, `sales.orders.cancel`, `sales.orders.split`
+- **Contracts:** `sales.contracts.view`, `sales.contracts.create`, `sales.contracts.sign`
+- **Inventory:** `sales.inventory.view`, `sales.inventory.stock_in`, `sales.inventory.stock_out`, `sales.inventory.adjust`
+- **Invoices:** `sales.invoices.view`, `sales.invoices.create`, `sales.invoices.record_payment`, `sales.invoices.void`
+- **Reports:** `sales.reports.view`, `sales.reports.export`
+
+**Total Permissions:** 42
 
 ---
 
-**Last Updated:** February 4, 2026  
+## 🚀 DEPLOYMENT INFO
+
+**Production URL:** `https://api.nextx.vn/sales` (Port 8003)  
+**Staging URL:** `https://staging.nextx.vn/sales`  
+**Local Dev:** `http://localhost:8003`
+
+---
+
+**Last Updated:** 04/02/2026  
 **Version:** 1.0.0  
-**Author:** NextX Product Team
+**Status:** ✅ Production Ready
